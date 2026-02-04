@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 
-
+# AuctionEvent model
 class AuctionEvent(models.Model):
     name = models.CharField(max_length=200)
     city = models.CharField(max_length=100)
