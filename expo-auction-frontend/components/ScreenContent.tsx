@@ -10,9 +10,16 @@ type ScreenContentProps = {
 };
 
 export const ScreenContent = ({ title, path, children }: ScreenContentProps) => {
+
+  const myFunction = (name: string) => {
+    return `"Hello, ${name}!"`;
+
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{title}</Text>
+      <Text>{myFunction('John')}</Text>
       <View style={styles.separator} />
       <EditScreenInfo path={path} />
       {children}
@@ -22,7 +29,9 @@ export const ScreenContent = ({ title, path, children }: ScreenContentProps) => 
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
+    alignItems: 'left',
+    padding: 50,
+    margin: 100,
     backgroundColor: 'white',
     flex: 1,
     justifyContent: 'center',
