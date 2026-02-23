@@ -1,28 +1,28 @@
 import { useState } from 'react';
-import { Stack } from 'expo-router';
+import { useRouter } from 'expo-router';
 
 import { StyleSheet, View, Text, TextInput, ScrollView } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { Container } from '@/components/Container';
 
-export default function Home() {
+export default function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
+  const router = useRouter();
   const handleSignIn = () => {
-    console.log('Sign in button pressed');
+    console.log('Sign in button pressed' + email + ' ' + password);
+    router.push('/(tabs)/events');
   };
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: 'Sign In' }} />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <Container>
           <View style={styles.signInContainer}>
             <Text style={styles.title}>Sign In</Text>
             <Text style={styles.subtitle}>Welcome back! Please sign in to continue.</Text>
-            
+
             <View style={styles.formContainer}>
               <Text style={styles.label}>Email</Text>
               <TextInput
@@ -35,7 +35,7 @@ export default function Home() {
                 keyboardType="email-address"
                 autoComplete="email"
               />
-              
+
               <Text style={styles.label}>Password</Text>
               <TextInput
                 style={styles.textInput}
@@ -47,9 +47,9 @@ export default function Home() {
                 autoCapitalize="none"
                 autoComplete="password"
               />
-              
-              <Button 
-                title="Sign In" 
+
+              <Button
+                title="Sign In"
                 onPress={handleSignIn}
                 style={styles.signInButton}
               />
