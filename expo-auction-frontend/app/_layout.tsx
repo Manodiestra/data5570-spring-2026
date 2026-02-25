@@ -1,5 +1,12 @@
+import { Provider } from 'react-redux';
 import { Stack } from 'expo-router';
 
+import { store } from '@/state/slices/store';
+
 export default function Layout() {
-  return <Stack screenOptions={{ headerShown: true }} />;
+  return (
+    <Provider store={store}>
+      <Stack screenOptions={{ headerShown: true }} />
+    </Provider>
+  );
 }

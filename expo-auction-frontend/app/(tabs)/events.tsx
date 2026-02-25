@@ -1,5 +1,4 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,8 +8,9 @@ import {
   ListRenderItem,
 } from 'react-native';
 
-import { MOCK_EVENTS } from '@/constants/events';
 import type { AuctionEvent } from '@/constants/events';
+import { useAppSelector } from '@/state/hooks';
+import { selectEvents } from '@/state/slices/eventsSlice';
 
 function formatEventDate(iso: string) {
   const d = new Date(iso);
@@ -40,7 +40,7 @@ const EventCard = ({ event, onPress }: { event: AuctionEvent; onPress: () => voi
 
 export default function EventsScreen() {
   const router = useRouter();
-  const [events, setEvents] = useState<AuctionEvent[]>(MOCK_EVENTS);
+  const events = useAppSelector(selectEvents);
 
   const renderItem: ListRenderItem<AuctionEvent> = ({ item }) => (
     <EventCard
@@ -66,13 +66,7 @@ export default function EventsScreen() {
             <Text style={styles.title}>Events</Text>
             <TouchableOpacity
               style={styles.addButton}
-              onPress={() =>
-                router.push({
-                  pathname: '/(tabs)/addEvent',
-                  // Navigation params: pass setEvents so addEvent can update this screen's list
-                  params: { setEvents } as unknown as Record<string, string>,
-                })
-              }
+              onPress={() => router.push('/(tabs)/addEvent')}
               activeOpacity={0.7}
             >
               <Text style={styles.addButtonText}>Add</Text>

@@ -1,7 +1,5 @@
-import { useRoute } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import type { SetStateAction } from 'react';
 import {
   StyleSheet,
   Text,
@@ -15,21 +13,17 @@ import {
 
 import { Button } from '@/components/Button';
 import type { AuctionEvent } from '@/constants/events';
+import { useAppDispatch, useAppSelector } from '@/state/hooks';
+import { addEvent as addEventAction, selectEvents } from '@/state/slices/eventsSlice';
 
 function nowISO() {
   return new Date().toISOString().slice(0, 16);
 }
 
-type AddEventRouteParams = {
-  setEvents?: (action: SetStateAction<AuctionEvent[]>) => void;
-};
-
 export default function AddEventScreen() {
   const router = useRouter();
-  const route = useRoute();
-  const params = route.params as AddEventRouteParams | undefined;
-  console.log('params', params);
-  const setEvents = params?.setEvents;
+  const dispatch = useAppDispatch();
+  const events = useAppSelector(selectEvents);
 
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
@@ -40,24 +34,22 @@ export default function AddEventScreen() {
   const [isActive, setIsActive] = useState(true);
 
   const handleSubmit = () => {
-    if (!setEvents) return;
     const now = new Date().toISOString();
-    setEvents((prev: AuctionEvent[]) => {
-      const nextId = prev.length > 0 ? Math.max(...prev.map((e: AuctionEvent) => e.id)) + 1 : 1;
-      const newEvent: AuctionEvent = {
-        id: nextId,
-        name: name.trim(),
-        city: city.trim(),
-        state: state.trim(),
-        zip_code: zipCode.trim(),
-        start_datetime: startDatetime,
-        end_datetime: endDatetime,
-        created_at: now,
-        updated_at: now,
-        is_active: isActive,
-      };
-      return [...prev, newEvent];
-    });
+    const nextId =
+      events.length > 0 ? Math.max(...events.map((e) => e.id)) + 1 : 1;
+    const newEvent: AuctionEvent = {
+      id: nextId,
+      name: name.trim(),
+      city: city.trim(),
+      state: state.trim(),
+      zip_code: zipCode.trim(),
+      start_datetime: startDatetime,
+      end_datetime: endDatetime,
+      created_at: now,
+      updated_at: now,
+      is_active: isActive,
+    };
+    dispatch(addEventAction(newEvent));
     router.back();
   };
 
