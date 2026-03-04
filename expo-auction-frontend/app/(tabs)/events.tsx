@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -6,11 +7,17 @@ import {
   FlatList,
   TouchableOpacity,
   ListRenderItem,
+  ActivityIndicator,
 } from 'react-native';
 
 import type { AuctionEvent } from '@/constants/events';
-import { useAppSelector } from '@/state/hooks';
-import { selectEvents } from '@/state/slices/eventsSlice';
+import { useAppDispatch, useAppSelector } from '@/state/hooks';
+import {
+  fetchEvents,
+  selectEvents,
+  selectEventsLoading,
+  selectEventsError,
+} from '@/state/slices/eventsSlice';
 
 function formatEventDate(iso: string) {
   const d = new Date(iso);
@@ -40,7 +47,17 @@ const EventCard = ({ event, onPress }: { event: AuctionEvent; onPress: () => voi
 
 export default function EventsScreen() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const events = useAppSelector(selectEvents);
+  const loading = useAppSelector(selectEventsLoading);
+  const error = useAppSelector(selectEventsError);
+
+  useEffect(
+    () => {
+      void dispatch(fetchEvents());
+    },
+    [dispatch]
+  );
 
   const renderItem: ListRenderItem<AuctionEvent> = ({ item }) => (
     <EventCard
@@ -56,11 +73,23 @@ export default function EventsScreen() {
 
   return (
     <View style={styles.container}>
+      {error ? (
+        <View style={styles.centered}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : (
       <FlatList
         data={events}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          loading ? (
+            <View style={styles.centered}>
+              <ActivityIndicator size="large" color="#6366F1" />
+            </View>
+          ) : null
+        }
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={styles.title}>Events</Text>
@@ -74,6 +103,7 @@ export default function EventsScreen() {
           </View>
         }
       />
+      )}
     </View>
   );
 }
@@ -138,5 +168,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#c00',
     fontWeight: '600',
+  },
+  centered: {
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    color: '#c00',
+    fontSize: 14,
   },
 });

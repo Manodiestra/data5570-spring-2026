@@ -1,13 +1,35 @@
 import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View, ScrollView } from 'react-native';
 
+import type { AuctionItem } from '@/constants/auctionItems';
 import type { AuctionEvent } from '@/constants/events';
+import { useAppSelector } from '@/state/hooks';
+import { selectAuctionItemsByEventId } from '@/state/slices/auctionItemsSlice';
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
+}
+
+function ItemCard({ item }: { item: AuctionItem }) {
+  const descriptionSnippet =
+    item.description.length > 80
+      ? `${item.description.slice(0, 80)}…`
+      : item.description;
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>{item.name}</Text>
+      <Text style={styles.cardDescription}>{descriptionSnippet}</Text>
+      <View style={styles.cardRow}>
+        <Text style={styles.cardPrice}>
+          ${item.current_price.toFixed(2)} {item.current_price > item.starting_price && '(current)'}
+        </Text>
+        <Text style={styles.cardStatus}>{item.status}</Text>
+      </View>
+    </View>
+  );
 }
 
 export default function EventItemScreen() {
@@ -20,6 +42,10 @@ export default function EventItemScreen() {
       event = null;
     }
   }
+
+  const itemsForEvent = useAppSelector(
+    selectAuctionItemsByEventId(event?.id ?? 0)
+  );
 
   if (!event) {
     return (
@@ -58,6 +84,15 @@ export default function EventItemScreen() {
         <Text style={styles.label}>Updated</Text>
         <Text style={styles.value}>{formatDateTime(event.updated_at)}</Text>
       </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Auction items</Text>
+        {itemsForEvent.length === 0 ? (
+          <Text style={styles.emptyItems}>No items in this auction yet.</Text>
+        ) : (
+          itemsForEvent.map((item) => <ItemCard key={item.id} item={item} />)
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -94,5 +129,52 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     padding: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#111',
+  },
+  emptyItems: {
+    fontSize: 15,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  card: {
+    backgroundColor: '#f8f8f8',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  cardTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#111',
+    marginBottom: 6,
+  },
+  cardDescription: {
+    fontSize: 14,
+    color: '#555',
+    marginBottom: 10,
+    lineHeight: 20,
+  },
+  cardRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardPrice: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111',
+  },
+  cardStatus: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#666',
+    textTransform: 'capitalize',
   },
 });

@@ -12,9 +12,8 @@ import {
 } from 'react-native';
 
 import { Button } from '@/components/Button';
-import type { AuctionEvent } from '@/constants/events';
-import { useAppDispatch, useAppSelector } from '@/state/hooks';
-import { addEvent as addEventAction, selectEvents } from '@/state/slices/eventsSlice';
+import { useAppDispatch } from '@/state/hooks';
+import { createEvent } from '@/state/slices/eventsSlice';
 
 function nowISO() {
   return new Date().toISOString().slice(0, 16);
@@ -23,7 +22,6 @@ function nowISO() {
 export default function AddEventScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const events = useAppSelector(selectEvents);
 
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
@@ -34,23 +32,22 @@ export default function AddEventScreen() {
   const [isActive, setIsActive] = useState(true);
 
   const handleSubmit = () => {
-    const now = new Date().toISOString();
-    const nextId =
-      events.length > 0 ? Math.max(...events.map((e) => e.id)) + 1 : 1;
-    const newEvent: AuctionEvent = {
-      id: nextId,
-      name: name.trim(),
-      city: city.trim(),
-      state: state.trim(),
-      zip_code: zipCode.trim(),
-      start_datetime: startDatetime,
-      end_datetime: endDatetime,
-      created_at: now,
-      updated_at: now,
-      is_active: isActive,
-    };
-    dispatch(addEventAction(newEvent));
-    router.back();
+    void dispatch(
+      createEvent({
+        name: name.trim(),
+        city: city.trim(),
+        state: state.trim(),
+        zip_code: zipCode.trim(),
+        start_datetime: startDatetime,
+        end_datetime: endDatetime,
+        created_by: 1, // TODO: use authenticated user id when auth is added
+        is_active: isActive,
+      })
+    ).then((result) => {
+      if (createEvent.fulfilled.match(result)) {
+        router.back();
+      }
+    });
   };
 
   return (

@@ -1,0 +1,69 @@
+/**
+ * Auction item type aligned with Django AuctionItem (auctions/models.py).
+ * auction_event is the foreign key to AuctionEvent.
+ */
+export type AuctionItemStatus = 'draft' | 'published' | 'sold' | 'cancelled';
+
+export type AuctionItem = {
+  id: number;
+  auction_event: number;
+  name: string;
+  description: string;
+  image_url: string | null;
+  owner: number;
+  starting_price: number;
+  current_price: number;
+  status: AuctionItemStatus;
+  created_at: string;
+  updated_at: string;
+  sold_at: string | null;
+  sold_to: number | null;
+};
+
+export const MOCK_AUCTION_ITEMS: AuctionItem[] = [
+  {
+    id: 1,
+    auction_event: 1,
+    name: 'Vintage Oil Painting',
+    description: 'Early 20th century landscape, framed. Good condition.',
+    image_url: null,
+    owner: 1,
+    starting_price: 150,
+    current_price: 200,
+    status: 'published',
+    created_at: '2026-01-10T10:00:00',
+    updated_at: '2026-01-10T10:00:00',
+    sold_at: null,
+    sold_to: null,
+  },
+  {
+    id: 2,
+    auction_event: 1,
+    name: 'Silver Candelabra Set',
+    description: 'Pair of antique sterling silver three-arm candelabras, circa 1890.',
+    image_url: null,
+    owner: 1,
+    starting_price: 320,
+    current_price: 320,
+    status: 'published',
+    created_at: '2026-01-10T10:15:00',
+    updated_at: '2026-01-10T10:15:00',
+    sold_at: null,
+    sold_to: null,
+  },
+  {
+    id: 3,
+    auction_event: 1,
+    name: 'Porcelain Figurine',
+    description: 'Hand-painted European porcelain figurine, signed.',
+    image_url: null,
+    owner: 2,
+    starting_price: 85,
+    current_price: 95,
+    status: 'published',
+    created_at: '2026-01-10T11:00:00',
+    updated_at: '2026-01-10T11:00:00',
+    sold_at: null,
+    sold_to: null,
+  },
+];
