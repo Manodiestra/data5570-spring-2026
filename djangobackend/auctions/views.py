@@ -1,7 +1,7 @@
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
-from .models import AuctionEvent
-from .serializers import AuctionEventSerializer
+from .models import AuctionEvent, AuctionItem
+from .serializers import AuctionEventSerializer, AuctionItemSerializer
 
 
 class AuctionEventViewSet(viewsets.ModelViewSet):
@@ -27,3 +27,20 @@ class AuctionEventViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         """Handle DELETE requests."""
         return super().destroy(request, *args, **kwargs)
+
+
+class AuctionItemViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for viewing and editing AuctionItem instances.
+
+    Supports:
+    - GET /api/auctionItem/ - List all items
+    - POST /api/auctionItem/ - Create new item
+    - GET /api/auctionItem/{id}/ - Retrieve specific item
+    - PUT /api/auctionItem/{id}/ - Full update of item
+    - PATCH /api/auctionItem/{id}/ - Partial update of item
+    - DELETE /api/auctionItem/{id}/ - Delete item
+    """
+    queryset = AuctionItem.objects.select_related('auction_event', 'owner', 'sold_to').all()
+    serializer_class = AuctionItemSerializer
+    permission_classes = [AllowAny]
