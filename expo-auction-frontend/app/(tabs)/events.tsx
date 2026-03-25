@@ -1,14 +1,13 @@
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
+import { StyleSheet, View, FlatList, TouchableOpacity, ListRenderItem } from 'react-native';
 import {
-  StyleSheet,
+  Card,
   Text,
-  View,
-  FlatList,
-  TouchableOpacity,
-  ListRenderItem,
+  Button,
   ActivityIndicator,
-} from 'react-native';
+  useTheme,
+} from 'react-native-paper';
 
 import type { AuctionEvent } from '@/constants/events';
 import { useAppDispatch, useAppSelector } from '@/state/hooks';
@@ -31,23 +30,32 @@ function formatEventDate(iso: string) {
 }
 
 const EventCard = ({ event, onPress }: { event: AuctionEvent; onPress: () => void }) => (
-  <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
-    <Text style={styles.cardTitle}>{event.name}</Text>
-    <Text style={styles.cardLocation}>
-      {event.city}, {event.state} {event.zip_code}
-    </Text>
-    <Text style={styles.cardDate}>
-      {formatEventDate(event.start_datetime)} – {formatEventDate(event.end_datetime)}
-    </Text>
-    {!event.is_active && (
-      <Text style={styles.cardBadge}>Ended</Text>
-    )}
+  <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={styles.cardWrapper}>
+    <Card style={styles.card} mode="elevated">
+      <Card.Content>
+        <Text variant="titleMedium" style={styles.cardTitle}>
+          {event.name}
+        </Text>
+        <Text variant="bodyMedium" style={styles.cardLocation}>
+          {event.city}, {event.state} {event.zip_code}
+        </Text>
+        <Text variant="bodySmall" style={styles.cardDate}>
+          {formatEventDate(event.start_datetime)} – {formatEventDate(event.end_datetime)}
+        </Text>
+        {!event.is_active && (
+          <Text variant="labelMedium" style={styles.cardBadge}>
+            Ended
+          </Text>
+        )}
+      </Card.Content>
+    </Card>
   </TouchableOpacity>
 );
 
 export default function EventsScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const theme = useTheme();
   const events = useAppSelector(selectEvents);
   const loading = useAppSelector(selectEventsLoading);
   const error = useAppSelector(selectEventsError);
@@ -75,34 +83,38 @@ export default function EventsScreen() {
     <View style={styles.container}>
       {error ? (
         <View style={styles.centered}>
-          <Text style={styles.errorText}>{error}</Text>
+          <Text variant="bodyLarge" style={styles.errorText}>
+            {error}
+          </Text>
         </View>
       ) : (
-      <FlatList
-        data={events}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          loading ? (
-            <View style={styles.centered}>
-              <ActivityIndicator size="large" color="#6366F1" />
+        <FlatList
+          data={events}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            loading ? (
+              <View style={styles.centered}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+              </View>
+            ) : null
+          }
+          ListHeaderComponent={
+            <View style={styles.header}>
+              <Text variant="headlineSmall" style={styles.title}>
+                Events
+              </Text>
+              <Button
+                mode="contained"
+                onPress={() => router.push('/(tabs)/addEvent')}
+                compact
+              >
+                Add
+              </Button>
             </View>
-          ) : null
-        }
-        ListHeaderComponent={
-          <View style={styles.header}>
-            <Text style={styles.title}>Events</Text>
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={() => router.push('/(tabs)/addEvent')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.addButtonText}>Add</Text>
-            </TouchableOpacity>
-          </View>
-        }
-      />
+          }
+        />
       )}
     </View>
   );
@@ -124,50 +136,27 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '600',
+    flex: 1,
   },
-  addButton: {
-    backgroundColor: '#6366F1',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  cardWrapper: {
+    marginBottom: 12,
   },
   card: {
-    backgroundColor: 'white',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
     marginBottom: 6,
   },
   cardLocation: {
-    fontSize: 14,
     color: '#666',
     marginBottom: 4,
   },
   cardDate: {
-    fontSize: 13,
     color: '#888',
   },
   cardBadge: {
     marginTop: 8,
-    fontSize: 12,
     color: '#c00',
-    fontWeight: '600',
   },
   centered: {
     padding: 24,
@@ -176,6 +165,5 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#c00',
-    fontSize: 14,
   },
 });
