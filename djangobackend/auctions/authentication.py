@@ -1,4 +1,3 @@
-import json
 import requests
 from jose import jwt
 from jose.exceptions import JWTError, ExpiredSignatureError
@@ -20,6 +19,11 @@ class CognitoUser:
         self.claims = claims
         self.username = claims.get("email") or claims.get("cognito:username")
         self.sub = claims.get("sub")
+
+    @property
+    def email(self):
+        e = self.claims.get("email")
+        return e if isinstance(e, str) else None
 
     @property
     def is_authenticated(self):

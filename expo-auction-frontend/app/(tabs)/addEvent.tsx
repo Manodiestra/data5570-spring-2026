@@ -40,7 +40,6 @@ export default function AddEventScreen() {
         zip_code: zipCode.trim(),
         start_datetime: startDatetime,
         end_datetime: endDatetime,
-        created_by: 1, // TODO: use authenticated user id when auth is added
         is_active: isActive,
       })
     ).then((result) => {

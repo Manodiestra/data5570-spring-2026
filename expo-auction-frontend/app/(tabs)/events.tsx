@@ -11,6 +11,7 @@ import {
 
 import type { AuctionEvent } from '@/constants/events';
 import { useAppDispatch, useAppSelector } from '@/state/hooks';
+import { displayNameForSub, selectCurrentUser } from '@/state/slices/authSlice';
 import {
   fetchEvents,
   selectEvents,
@@ -29,7 +30,15 @@ function formatEventDate(iso: string) {
   });
 }
 
-const EventCard = ({ event, onPress }: { event: AuctionEvent; onPress: () => void }) => (
+const EventCard = ({
+  event,
+  onPress,
+  organizerLabel,
+}: {
+  event: AuctionEvent;
+  onPress: () => void;
+  organizerLabel: string;
+}) => (
   <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={styles.cardWrapper}>
     <Card style={styles.card} mode="elevated">
       <Card.Content>
@@ -38,6 +47,9 @@ const EventCard = ({ event, onPress }: { event: AuctionEvent; onPress: () => voi
         </Text>
         <Text variant="bodyMedium" style={styles.cardLocation}>
           {event.city}, {event.state} {event.zip_code}
+        </Text>
+        <Text variant="bodySmall" style={styles.cardMeta}>
+          Organizer: {organizerLabel}
         </Text>
         <Text variant="bodySmall" style={styles.cardDate}>
           {formatEventDate(event.start_datetime)} – {formatEventDate(event.end_datetime)}
@@ -59,6 +71,7 @@ export default function EventsScreen() {
   const events = useAppSelector(selectEvents);
   const loading = useAppSelector(selectEventsLoading);
   const error = useAppSelector(selectEventsError);
+  const currentUser = useAppSelector(selectCurrentUser);
 
   useEffect(
     () => {
@@ -70,6 +83,11 @@ export default function EventsScreen() {
   const renderItem: ListRenderItem<AuctionEvent> = ({ item }) => (
     <EventCard
       event={item}
+      organizerLabel={displayNameForSub(
+        item.created_by_sub,
+        currentUser,
+        item.created_by_display_name
+      )}
       onPress={() =>
         router.push({
           pathname: '/(tabs)/event/[id]',
@@ -149,6 +167,10 @@ const styles = StyleSheet.create({
   },
   cardLocation: {
     color: '#666',
+    marginBottom: 4,
+  },
+  cardMeta: {
+    color: '#777',
     marginBottom: 4,
   },
   cardDate: {

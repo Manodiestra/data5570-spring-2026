@@ -4,6 +4,7 @@ import { StyleSheet, Text, View, ScrollView } from 'react-native';
 import type { AuctionItem } from '@/constants/auctionItems';
 import type { AuctionEvent } from '@/constants/events';
 import { useAppSelector } from '@/state/hooks';
+import { displayNameForSub, selectCurrentUser } from '@/state/slices/authSlice';
 import { selectAuctionItemsByEventId } from '@/state/slices/auctionItemsSlice';
 
 function formatDateTime(iso: string) {
@@ -13,7 +14,13 @@ function formatDateTime(iso: string) {
   });
 }
 
-function ItemCard({ item }: { item: AuctionItem }) {
+function ItemCard({
+  item,
+  ownerLabel,
+}: {
+  item: AuctionItem;
+  ownerLabel: string;
+}) {
   const descriptionSnippet =
     item.description.length > 80
       ? `${item.description.slice(0, 80)}…`
@@ -21,6 +28,7 @@ function ItemCard({ item }: { item: AuctionItem }) {
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>{item.name}</Text>
+      <Text style={styles.cardSeller}>Seller: {ownerLabel}</Text>
       <Text style={styles.cardDescription}>{descriptionSnippet}</Text>
       <View style={styles.cardRow}>
         <Text style={styles.cardPrice}>
@@ -46,6 +54,7 @@ export default function EventItemScreen() {
   const itemsForEvent = useAppSelector(
     selectAuctionItemsByEventId(event?.id ?? 0)
   );
+  const currentUser = useAppSelector(selectCurrentUser);
 
   if (!event) {
     return (
@@ -77,6 +86,16 @@ export default function EventItemScreen() {
         <Text style={styles.value}>{event.is_active ? 'Active' : 'Ended'}</Text>
       </View>
       <View style={styles.section}>
+        <Text style={styles.label}>Organizer</Text>
+        <Text style={styles.value}>
+          {displayNameForSub(
+            event.created_by_sub,
+            currentUser,
+            event.created_by_display_name
+          )}
+        </Text>
+      </View>
+      <View style={styles.section}>
         <Text style={styles.label}>Created</Text>
         <Text style={styles.value}>{formatDateTime(event.created_at)}</Text>
       </View>
@@ -90,7 +109,17 @@ export default function EventItemScreen() {
         {itemsForEvent.length === 0 ? (
           <Text style={styles.emptyItems}>No items in this auction yet.</Text>
         ) : (
-          itemsForEvent.map((item) => <ItemCard key={item.id} item={item} />)
+          itemsForEvent.map((item) => (
+            <ItemCard
+              key={item.id}
+              item={item}
+              ownerLabel={displayNameForSub(
+                item.owner_sub,
+                currentUser,
+                item.owner_display_name
+              )}
+            />
+          ))
         )}
       </View>
     </ScrollView>
@@ -154,6 +183,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#111',
     marginBottom: 6,
+  },
+  cardSeller: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 8,
   },
   cardDescription: {
     fontSize: 14,

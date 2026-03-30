@@ -1,5 +1,20 @@
 from django.db import models
-from django.contrib.auth.models import User
+
+
+class UserProfile(models.Model):
+    """Public display data for a Cognito user, keyed by JWT `sub`."""
+
+    cognito_sub = models.CharField(max_length=128, primary_key=True)
+    display_name = models.CharField(max_length=150, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'user profile'
+        verbose_name_plural = 'user profiles'
+
+    def __str__(self):
+        return self.display_name or self.cognito_sub
+
 
 # AuctionEvent model
 class AuctionEvent(models.Model):
@@ -11,11 +26,8 @@ class AuctionEvent(models.Model):
     end_datetime = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='created_auction_events'
-    )
+    # Cognito user identifier (JWT "sub")
+    created_by_sub = models.CharField(max_length=128, db_index=True)
     is_active = models.BooleanField(default=True, db_index=True)
     
     class Meta:
@@ -45,12 +57,8 @@ class AuctionItem(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField()
     image_url = models.URLField(max_length=500, blank=True, null=True)
-    owner = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='owned_items',
-        db_index=True
-    )
+    # Cognito user identifier (JWT "sub")
+    owner_sub = models.CharField(max_length=128, db_index=True)
     starting_price = models.DecimalField(max_digits=10, decimal_places=2)
     current_price = models.DecimalField(max_digits=10, decimal_places=2, db_index=True)
     status = models.CharField(
@@ -62,19 +70,14 @@ class AuctionItem(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     sold_at = models.DateTimeField(null=True, blank=True)
-    sold_to = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='won_items'
-    )
+    # Cognito user identifier (JWT "sub") of buyer (if sold)
+    sold_to_sub = models.CharField(max_length=128, null=True, blank=True, db_index=True)
     
     class Meta:
         indexes = [
             models.Index(fields=['auction_event']),
             models.Index(fields=['status']),
-            models.Index(fields=['owner']),
+            models.Index(fields=['owner_sub']),
             models.Index(fields=['current_price']),
         ]
     

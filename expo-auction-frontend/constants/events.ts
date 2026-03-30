@@ -12,7 +12,15 @@ export type AuctionEvent = {
   end_datetime: string;
   created_at: string;
   updated_at: string;
+  /** Cognito user id (JWT `sub`) — set by the API on create. */
+  created_by_sub: string;
+  /**
+   * Optional display name for the creator, if the API exposes it (e.g. from a Django profile table).
+   * Until then, the UI can fall back to `displayNameForSub(created_by_sub, currentUser)`.
+   */
+  created_by_display_name?: string | null;
   is_active: boolean;
+  items_count?: number;
 };
 
 export const MOCK_EVENTS: AuctionEvent[] = [
@@ -26,6 +34,8 @@ export const MOCK_EVENTS: AuctionEvent[] = [
     end_datetime: '2026-03-15T18:00:00',
     created_at: '2026-01-10T09:00:00',
     updated_at: '2026-01-10T09:00:00',
+    created_by_sub: 'mock-cognito-sub-alice',
+    created_by_display_name: 'Alice',
     is_active: true,
   },
   {
@@ -38,6 +48,8 @@ export const MOCK_EVENTS: AuctionEvent[] = [
     end_datetime: '2026-04-02T17:00:00',
     created_at: '2026-01-12T14:00:00',
     updated_at: '2026-01-12T14:00:00',
+    created_by_sub: 'mock-cognito-sub-bob',
+    created_by_display_name: 'Bob',
     is_active: true,
   },
   {
@@ -50,6 +62,7 @@ export const MOCK_EVENTS: AuctionEvent[] = [
     end_datetime: '2026-05-21T16:00:00',
     created_at: '2026-01-15T11:30:00',
     updated_at: '2026-01-15T11:30:00',
+    created_by_sub: 'mock-cognito-sub-carol',
     is_active: true,
   },
 ];

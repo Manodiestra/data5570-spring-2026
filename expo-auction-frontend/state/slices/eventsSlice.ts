@@ -1,10 +1,12 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
 import type { AuctionEvent } from '@/constants/events';
+import { DJANGO_API_BASE } from '@/services/djangoApi';
+import { authHeaders } from '@/state/slices/authSlice';
 
-const API_BASE = 'http://localhost:8000/api';
+const API_BASE = DJANGO_API_BASE;
 
-type EventsState = {
+export type EventsState = {
   items: AuctionEvent[];
   loading: boolean;
   error: string | null;
@@ -16,7 +18,7 @@ const initialState: EventsState = {
   error: null,
 };
 
-/** Payload for creating an event (POST). Omits server-set fields. */
+/** Payload for creating an event (POST). `created_by_sub` is set by Django from the JWT. */
 export type CreateEventPayload = {
   name: string;
   city: string;
@@ -24,8 +26,11 @@ export type CreateEventPayload = {
   zip_code: string;
   start_datetime: string;
   end_datetime: string;
-  created_by: number;
   is_active?: boolean;
+};
+
+type RootWithAuth = {
+  auth: { accessToken: string | null };
 };
 
 export const fetchEvents = createAsyncThunk<
@@ -54,15 +59,20 @@ export const fetchEvents = createAsyncThunk<
 export const createEvent = createAsyncThunk<
   AuctionEvent,
   CreateEventPayload,
-  { rejectValue: string }
+  { rejectValue: string; state: RootWithAuth }
 >(
   'events/createEvent',
-  async (payload, { rejectWithValue }) => {
+  async (payload, { rejectWithValue, getState }) => {
     try {
+      const token = getState().auth.accessToken;
+      if (!token) {
+        return rejectWithValue('You must be signed in to create an event.');
+      }
       const res = await fetch(`${API_BASE}/auctionEvent/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders(token),
         },
         body: JSON.stringify({
           ...payload,

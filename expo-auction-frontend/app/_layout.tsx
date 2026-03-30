@@ -1,3 +1,5 @@
+import 'react-native-get-random-values';
+
 import { Provider } from 'react-redux';
 import { Stack } from 'expo-router';
 import { PaperProvider } from 'react-native-paper';

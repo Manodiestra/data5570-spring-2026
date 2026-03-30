@@ -1,18 +1,62 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 
-import { StyleSheet, View, Text, TextInput, ScrollView } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { Button } from '@/components/Button';
 import { Container } from '@/components/Container';
+import { signInWithEmailPassword } from '@/services/cognitoAuth';
+import { useAppDispatch } from '@/state/hooks';
+import { setCredentials } from '@/state/slices/authSlice';
+
+function cognitoMessage(err: unknown): string {
+  if (err && typeof err === 'object' && 'message' in err && typeof (err as Error).message === 'string') {
+    return (err as Error).message;
+  }
+  return 'Sign in failed';
+}
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const dispatch = useAppDispatch();
+
   const handleSignIn = () => {
-    console.log('Sign in button pressed' + email + ' ' + password);
-    router.push('/(tabs)/events');
+    setError(null);
+    const e = email.trim().toLowerCase();
+    if (!e || !password) {
+      setError('Enter email and password');
+      return;
+    }
+    setLoading(true);
+    void (async () => {
+      try {
+        const tokens = await signInWithEmailPassword(e, password);
+        dispatch(
+          setCredentials({
+            accessToken: tokens.accessToken,
+            idToken: tokens.idToken,
+            refreshToken: tokens.refreshToken,
+          })
+        );
+        router.replace('/(tabs)/events');
+      } catch (err: unknown) {
+        setError(cognitoMessage(err));
+      } finally {
+        setLoading(false);
+      }
+    })();
   };
 
   return (
@@ -34,6 +78,7 @@ export default function SignInScreen() {
                 autoCapitalize="none"
                 keyboardType="email-address"
                 autoComplete="email"
+                editable={!loading}
               />
 
               <Text style={styles.label}>Password</Text>
@@ -46,13 +91,24 @@ export default function SignInScreen() {
                 secureTextEntry
                 autoCapitalize="none"
                 autoComplete="password"
+                editable={!loading}
               />
 
-              <Button
-                title="Sign In"
-                onPress={handleSignIn}
-                style={styles.signInButton}
-              />
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+              {loading ? (
+                <ActivityIndicator style={styles.spinner} />
+              ) : (
+                <Button title="Sign In" onPress={handleSignIn} style={styles.signInButton} />
+              )}
+
+              <Pressable
+                onPress={() => router.push('/(auth)/sign-up')}
+                style={styles.linkWrap}
+                disabled={loading}
+              >
+                <Text style={styles.link}>Create an account</Text>
+              </Pressable>
             </View>
           </View>
         </Container>
@@ -109,5 +165,22 @@ const styles = StyleSheet.create({
   signInButton: {
     marginTop: 24,
     marginHorizontal: 0,
+  },
+  spinner: {
+    marginTop: 24,
+  },
+  errorText: {
+    marginTop: 16,
+    color: '#c00',
+    fontSize: 14,
+  },
+  linkWrap: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  link: {
+    fontSize: 16,
+    color: '#1565c0',
+    fontWeight: '600',
   },
 });
