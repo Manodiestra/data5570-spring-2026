@@ -1,37 +1,78 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  ScrollView,
-  Switch,
+  ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 
 import { Button } from '@/components/Button';
-import { useAppDispatch } from '@/state/hooks';
-import { createEvent } from '@/state/slices/eventsSlice';
+import { useAppDispatch, useAppSelector } from '@/state/hooks';
+import { selectAccessToken } from '@/state/slices/authSlice';
+import {
+  clearEventsError,
+  createEvent,
+  selectEventsError,
+  selectEventsLoading,
+} from '@/state/slices/eventsSlice';
 
+/** `datetime-local` value: YYYY-MM-DDTHH:mm in local terms (slice matches input format). */
 function nowISO() {
   return new Date().toISOString().slice(0, 16);
+}
+
+/** Default end = start + `hours` (avoids end === start, which fails Django validation). */
+function addHoursToISO(isoSlice: string, hours: number): string {
+  const d = new Date(isoSlice);
+  if (Number.isNaN(d.getTime())) {
+    const fallback = new Date();
+    fallback.setHours(fallback.getHours() + hours);
+    return fallback.toISOString().slice(0, 16);
+  }
+  d.setTime(d.getTime() + hours * 60 * 60 * 1000);
+  return d.toISOString().slice(0, 16);
 }
 
 export default function AddEventScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const accessToken = useAppSelector(selectAccessToken);
+  const eventsError = useAppSelector(selectEventsError);
+  const eventsLoading = useAppSelector(selectEventsLoading);
 
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [zipCode, setZipCode] = useState('');
   const [startDatetime, setStartDatetime] = useState(nowISO());
-  const [endDatetime, setEndDatetime] = useState(nowISO());
+  const [endDatetime, setEndDatetime] = useState(() => addHoursToISO(nowISO(), 1));
   const [isActive, setIsActive] = useState(true);
 
+  useEffect(() => {
+    dispatch(clearEventsError());
+  }, [dispatch]);
+
   const handleSubmit = () => {
+    if (!accessToken) {
+      Alert.alert(
+        'Sign in required',
+        'Your session has no access token (e.g. after a full page reload on web, Redux is cleared). Sign in again to create events.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign in', onPress: () => router.replace('/(auth)') },
+        ]
+      );
+      return;
+    }
+
     void dispatch(
       createEvent({
         name: name.trim(),
@@ -42,11 +83,14 @@ export default function AddEventScreen() {
         end_datetime: endDatetime,
         is_active: isActive,
       })
-    ).then((result) => {
-      if (createEvent.fulfilled.match(result)) {
+    )
+      .unwrap()
+      .then(() => {
         router.back();
-      }
-    });
+      })
+      .catch((message: string) => {
+        Alert.alert('Could not create event', message);
+      });
   };
 
   return (
@@ -61,6 +105,20 @@ export default function AddEventScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.title}>Add Auction Event</Text>
+
+        {!accessToken ? (
+          <View style={styles.warnBanner}>
+            <Text style={styles.warnText}>
+              You are not signed in. Add Event will not call the API until you sign in (web reloads clear
+              the session).
+            </Text>
+            <Pressable onPress={() => router.replace('/(auth)')} style={styles.warnLink}>
+              <Text style={styles.warnLinkText}>Go to sign in</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {eventsError ? <Text style={styles.errorBanner}>{eventsError}</Text> : null}
 
         <Text style={styles.label}>Name</Text>
         <TextInput
@@ -126,7 +184,11 @@ export default function AddEventScreen() {
           <Switch value={isActive} onValueChange={setIsActive} />
         </View>
 
-        <Button title="Add Event" onPress={handleSubmit} style={styles.submitButton} />
+        {eventsLoading ? (
+          <ActivityIndicator style={styles.submitButton} />
+        ) : (
+          <Button title="Add Event" onPress={handleSubmit} style={styles.submitButton} />
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -173,5 +235,31 @@ const styles = StyleSheet.create({
   submitButton: {
     marginTop: 24,
     marginHorizontal: 0,
+  },
+  warnBanner: {
+    backgroundColor: '#fff8e6',
+    borderColor: '#f0c040',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  warnText: {
+    color: '#5c4a00',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  warnLink: {
+    marginTop: 8,
+  },
+  warnLinkText: {
+    color: '#1565c0',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  errorBanner: {
+    color: '#b00020',
+    fontSize: 14,
+    marginBottom: 12,
   },
 });

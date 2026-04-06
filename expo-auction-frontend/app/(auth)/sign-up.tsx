@@ -19,7 +19,7 @@ import {
   signInWithEmailPassword,
   signUpWithEmailPassword,
 } from '@/services/cognitoAuth';
-import { patchMyProfile } from '@/services/profileApi';
+import { getMyProfile, patchMyProfile } from '@/services/profileApi';
 import { useAppDispatch } from '@/state/hooks';
 import { setCredentials } from '@/state/slices/authSlice';
 
@@ -75,11 +75,16 @@ export default function SignUpScreen() {
             })
           );
           try {
+            await getMyProfile(tokens.accessToken);
+          } catch {
+            /* Row may still be missing if GET fails */
+          }
+          try {
             await patchMyProfile(tokens.accessToken, {
               display_name: displayName.trim() || normalizedEmail.split('@')[0] || 'User',
             });
           } catch {
-            // Profile sync is optional on first sign-up; user can retry from settings later
+            /* Display name optional if PATCH fails after GET created the row */
           }
           router.replace('/(tabs)/events');
         } else {
@@ -113,6 +118,11 @@ export default function SignUpScreen() {
             refreshToken: tokens.refreshToken,
           })
         );
+        try {
+          await getMyProfile(tokens.accessToken);
+        } catch {
+          /* non-fatal */
+        }
         try {
           await patchMyProfile(tokens.accessToken, {
             display_name: displayName.trim() || normalizedEmail.split('@')[0] || 'User',

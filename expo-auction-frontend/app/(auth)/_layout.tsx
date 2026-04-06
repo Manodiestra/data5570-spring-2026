@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 
 export default function AuthTabLayout() {
   return (
-    <Tabs>
+    <Tabs screenOptions={{ headerShown: false }}>
       <Tabs.Screen
         name="index"
         options={{

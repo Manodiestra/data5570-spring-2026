@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/Button';
 import { Container } from '@/components/Container';
 import { signInWithEmailPassword } from '@/services/cognitoAuth';
+import { getMyProfile } from '@/services/profileApi';
 import { useAppDispatch } from '@/state/hooks';
 import { setCredentials } from '@/state/slices/authSlice';
 
@@ -50,6 +51,11 @@ export default function SignInScreen() {
             refreshToken: tokens.refreshToken,
           })
         );
+        try {
+          await getMyProfile(tokens.accessToken);
+        } catch {
+          /* Profile GET is best-effort; sign-in still succeeds */
+        }
         router.replace('/(tabs)/events');
       } catch (err: unknown) {
         setError(cognitoMessage(err));

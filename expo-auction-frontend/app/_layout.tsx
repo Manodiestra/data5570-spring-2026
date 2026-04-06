@@ -10,7 +10,11 @@ export default function Layout() {
   return (
     <Provider store={store}>
       <PaperProvider>
-        <Stack screenOptions={{ headerShown: true }} />
+        <Stack screenOptions={{ headerShown: true }}>
+          {/* Hide root stack chrome for grouped routes (otherwise titles show as "(tabs)" / "(auth)"). */}
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        </Stack>
       </PaperProvider>
     </Provider>
   );

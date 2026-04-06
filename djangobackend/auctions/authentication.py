@@ -79,15 +79,22 @@ class CognitoJWTAuthentication(BaseAuthentication):
             if not key:
                 raise AuthenticationFailed('Public key not found.')
 
-            decode_kwargs = dict(
-                token,
-                key,
-                algorithms=['RS256'],
-                issuer=f'https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{USER_POOL_ID}',
-            )
+            issuer = f'https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{USER_POOL_ID}'
             if token_use == "id":
-                decode_kwargs["audience"] = APP_CLIENT_ID
-            payload = jwt.decode(**decode_kwargs)
+                payload = jwt.decode(
+                    token,
+                    key,
+                    algorithms=['RS256'],
+                    audience=APP_CLIENT_ID,
+                    issuer=issuer,
+                )
+            else:
+                payload = jwt.decode(
+                    token,
+                    key,
+                    algorithms=['RS256'],
+                    issuer=issuer,
+                )
 
             return (CognitoUser(payload), None)
 
