@@ -1,5 +1,12 @@
-from rest_framework import generics, viewsets
+import os
+from typing import Optional
+
+import anthropic
+
+from rest_framework import generics, viewsets, status
 from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission, SAFE_METHODS
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from .models import AuctionEvent, AuctionItem, UserProfile
 from .serializers import (
     AuctionEventSerializer,
@@ -8,6 +15,12 @@ from .serializers import (
     profile_display_map_for_subs,
 )
 from .authentication import CognitoJWTAuthentication
+
+
+def _anthropic_error_message(err: Exception) -> str:
+    # Keep error messages concise for API responses.
+    msg = str(err).strip()
+    return msg if msg else err.__class__.__name__
 
 
 class IsOwnerOrReadOnly(BasePermission):
@@ -125,4 +138,81 @@ class AuctionItemViewSet(ProfileDisplayContextMixin, viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):
-        serializer.save(owner_sub=getattr(self.request.user, "sub", None))
+        # Serializer marks `current_price` read-only, but the DB requires it.
+        # Set it server-side to the starting price on create.
+        starting_price = serializer.validated_data.get("starting_price")
+        serializer.save(
+            owner_sub=getattr(self.request.user, "sub", None),
+            current_price=starting_price,
+        )
+
+
+class GenerateAuctionItemDescriptionView(APIView):
+    """
+    POST /api/ai/generate-item-description/
+
+    Body: { "name": "Item name" }
+    Response: { "description": "..." }
+
+    Auth: required (JWT).
+    """
+
+    authentication_classes = [CognitoJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        name = request.data.get("name")
+        if not isinstance(name, str) or not name.strip():
+            return Response(
+                {"detail": "Missing required field: name"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            return Response(
+                {"detail": "ANTHROPIC_API_KEY is not configured on the server."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # Allow overriding model per environment (helps when accounts have different model access).
+        model = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+
+        prompt_name = name.strip()[:200]
+        system = (
+            "You write concise, accurate auction listing descriptions for university students. "
+            "Do not invent brand/model details. If specifics are unknown, keep it general. "
+            "Return only the description text (no title, no bullets unless natural)."
+        )
+        user = (
+            f'Write a short auction description (2-4 sentences) for this item name: "{prompt_name}". '
+            "Mention condition in a neutral way (if unknown, say 'condition not specified')."
+        )
+
+        try:
+            client = anthropic.Anthropic(api_key=api_key)
+            message = client.messages.create(
+                model=model,
+                max_tokens=200,
+                system=system,
+                messages=[{"role": "user", "content": user}],
+            )
+
+            description: Optional[str] = None
+            if getattr(message, "content", None) and len(message.content) > 0:
+                first = message.content[0]
+                text = getattr(first, "text", None)
+                if isinstance(text, str) and text.strip():
+                    description = text.strip()
+
+            if not description:
+                return Response(
+                    {"detail": "Anthropic returned no description text."},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+            return Response({"description": description}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(
+                {"detail": f"Anthropic API request error: {_anthropic_error_message(e)}"},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )

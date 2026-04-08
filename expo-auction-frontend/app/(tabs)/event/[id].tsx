@@ -1,11 +1,16 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView } from 'react-native';
+import { Button } from 'react-native-paper';
 
 import type { AuctionItem } from '@/constants/auctionItems';
 import type { AuctionEvent } from '@/constants/events';
-import { useAppSelector } from '@/state/hooks';
+import { useAppDispatch, useAppSelector } from '@/state/hooks';
 import { displayNameForSub, selectCurrentUser } from '@/state/slices/authSlice';
-import { selectAuctionItemsByEventId } from '@/state/slices/auctionItemsSlice';
+import {
+  fetchAuctionItems,
+  selectAuctionItemsByEventId,
+} from '@/state/slices/auctionItemsSlice';
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
@@ -41,6 +46,8 @@ function ItemCard({
 }
 
 export default function EventItemScreen() {
+  const router = useRouter();
+  const dispatch = useAppDispatch();
   const { eventJson } = useLocalSearchParams<{ id: string; eventJson?: string }>();
   let event: AuctionEvent | null = null;
   if (eventJson) {
@@ -55,6 +62,10 @@ export default function EventItemScreen() {
     selectAuctionItemsByEventId(event?.id ?? 0)
   );
   const currentUser = useAppSelector(selectCurrentUser);
+
+  useEffect(() => {
+    void dispatch(fetchAuctionItems());
+  }, [dispatch]);
 
   if (!event) {
     return (
@@ -105,7 +116,21 @@ export default function EventItemScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Auction items</Text>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Auction items</Text>
+          <Button
+            mode="contained"
+            compact
+            onPress={() =>
+              router.push({
+                pathname: '/(tabs)/addItem',
+                params: { eventId: String(event.id) },
+              })
+            }
+          >
+            Add
+          </Button>
+        </View>
         {itemsForEvent.length === 0 ? (
           <Text style={styles.emptyItems}>No items in this auction yet.</Text>
         ) : (
@@ -164,6 +189,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
     color: '#111',
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   emptyItems: {
     fontSize: 15,

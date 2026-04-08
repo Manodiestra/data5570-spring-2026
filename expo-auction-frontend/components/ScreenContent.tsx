@@ -29,7 +29,7 @@ export const ScreenContent = ({ title, path, children }: ScreenContentProps) => 
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'left',
+    alignItems: 'flex-start',
     padding: 50,
     margin: 100,
     backgroundColor: 'white',
