@@ -7,10 +7,7 @@ import type { AuctionItem } from '@/constants/auctionItems';
 import type { AuctionEvent } from '@/constants/events';
 import { useAppDispatch, useAppSelector } from '@/state/hooks';
 import { displayNameForSub, selectCurrentUser } from '@/state/slices/authSlice';
-import {
-  fetchAuctionItems,
-  selectAuctionItemsByEventId,
-} from '@/state/slices/auctionItemsSlice';
+import { fetchAuctionItems, selectAuctionItemsByEventId } from '@/state/slices/auctionItemsSlice';
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
@@ -22,14 +19,14 @@ function formatDateTime(iso: string) {
 function ItemCard({
   item,
   ownerLabel,
+  onBuy,
 }: {
   item: AuctionItem;
   ownerLabel: string;
+  onBuy: () => void;
 }) {
   const descriptionSnippet =
-    item.description.length > 80
-      ? `${item.description.slice(0, 80)}…`
-      : item.description;
+    item.description.length > 80 ? `${item.description.slice(0, 80)}…` : item.description;
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>{item.name}</Text>
@@ -41,6 +38,11 @@ function ItemCard({
         </Text>
         <Text style={styles.cardStatus}>{item.status}</Text>
       </View>
+      {item.status === 'published' ? (
+        <Button mode="contained" compact onPress={onBuy} style={styles.buyButton}>
+          Buy
+        </Button>
+      ) : null}
     </View>
   );
 }
@@ -58,9 +60,7 @@ export default function EventItemScreen() {
     }
   }
 
-  const itemsForEvent = useAppSelector(
-    selectAuctionItemsByEventId(event?.id ?? 0)
-  );
+  const itemsForEvent = useAppSelector(selectAuctionItemsByEventId(event?.id ?? 0));
   const currentUser = useAppSelector(selectCurrentUser);
 
   useEffect(() => {
@@ -99,11 +99,7 @@ export default function EventItemScreen() {
       <View style={styles.section}>
         <Text style={styles.label}>Organizer</Text>
         <Text style={styles.value}>
-          {displayNameForSub(
-            event.created_by_sub,
-            currentUser,
-            event.created_by_display_name
-          )}
+          {displayNameForSub(event.created_by_sub, currentUser, event.created_by_display_name)}
         </Text>
       </View>
       <View style={styles.section}>
@@ -126,8 +122,7 @@ export default function EventItemScreen() {
                 pathname: '/(tabs)/addItem',
                 params: { eventId: String(event.id) },
               })
-            }
-          >
+            }>
             Add
           </Button>
         </View>
@@ -138,11 +133,13 @@ export default function EventItemScreen() {
             <ItemCard
               key={item.id}
               item={item}
-              ownerLabel={displayNameForSub(
-                item.owner_sub,
-                currentUser,
-                item.owner_display_name
-              )}
+              ownerLabel={displayNameForSub(item.owner_sub, currentUser, item.owner_display_name)}
+              onBuy={() =>
+                router.push({
+                  pathname: '/(tabs)/itemCheckout/[itemId]',
+                  params: { itemId: String(item.id) },
+                })
+              }
             />
           ))
         )}
@@ -240,5 +237,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#666',
     textTransform: 'capitalize',
+  },
+  buyButton: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
   },
 });

@@ -1,0 +1,3 @@
+# Core project dependencies are typically installed per course/setup.
+# Stripe (Checkout Session API for one-time payments POC):
+stripe>=11.0.0

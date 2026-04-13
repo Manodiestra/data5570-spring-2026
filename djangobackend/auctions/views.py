@@ -1,5 +1,6 @@
 import os
-from typing import Optional
+from decimal import Decimal
+from typing import Any, Optional
 
 import anthropic
 
@@ -216,3 +217,148 @@ class GenerateAuctionItemDescriptionView(APIView):
                 {"detail": f"Anthropic API request error: {_anthropic_error_message(e)}"},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
+
+
+class CreateCheckoutSessionView(APIView):
+    """
+    POST /api/payments/create-checkout-session/
+
+    Body: { "auction_item_id": <int>, "customer_email": "<optional>" }
+
+    Creates a Stripe Checkout Session (test mode) and returns { "checkout_url": "..." }.
+    Open that URL in a browser to complete payment (class demo / POC).
+
+    Configure STRIPE_SECRET_KEY and checkout redirect URLs in the environment
+    (see .env.example). Do not commit API keys.
+    """
+
+    authentication_classes: list[Any] = [CognitoJWTAuthentication]
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        try:
+            import stripe
+        except ImportError:
+            return Response(
+                {"detail": "Python package 'stripe' is not installed. See djangobackend/requirements.txt."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        secret = os.environ.get("STRIPE_SECRET_KEY")
+        if not secret:
+            return Response(
+                {"detail": "STRIPE_SECRET_KEY is not configured on the server."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        success_url = os.environ.get("STRIPE_CHECKOUT_SUCCESS_URL", "").strip()
+        cancel_url = os.environ.get("STRIPE_CHECKOUT_CANCEL_URL", "").strip()
+        if not success_url or not cancel_url:
+            return Response(
+                {
+                    "detail": (
+                        "Set STRIPE_CHECKOUT_SUCCESS_URL and STRIPE_CHECKOUT_CANCEL_URL "
+                        "in the server environment (see .env.example)."
+                    ),
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        raw_id = request.data.get("auction_item_id")
+        try:
+            item_id = int(raw_id)
+        except (TypeError, ValueError):
+            return Response(
+                {"detail": "Invalid or missing auction_item_id."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            item = AuctionItem.objects.select_related("auction_event").get(pk=item_id)
+        except AuctionItem.DoesNotExist:
+            return Response(
+                {"detail": "Auction item not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if item.status != "published":
+            return Response(
+                {"detail": "This item is not available for purchase."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        unit_amount = int(Decimal(str(item.current_price)) * 100)
+        # Stripe USD card payments typically enforce a $0.50 minimum.
+        if unit_amount < 50:
+            return Response(
+                {"detail": "Item price is below the minimum charge amount for checkout."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        customer_email = request.data.get("customer_email")
+        if customer_email is not None and not isinstance(customer_email, str):
+            return Response(
+                {"detail": "customer_email must be a string when provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        email_stripped = customer_email.strip() if isinstance(customer_email, str) else ""
+        if email_stripped and "@" not in email_stripped:
+            return Response(
+                {"detail": "customer_email does not look valid."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        stripe.api_key = secret
+
+        event_label = ""
+        if item.auction_event:
+            event_label = (item.auction_event.name or "")[:200]
+
+        product_name = item.name[:200]
+        if event_label:
+            product_name = f"{product_name} ({event_label})"[:200]
+
+        desc = (item.description or "").strip()
+        if len(desc) > 500:
+            desc = desc[:497] + "..."
+
+        params: dict[str, Any] = {
+            "mode": "payment",
+            "line_items": [
+                {
+                    "price_data": {
+                        "currency": "usd",
+                        "unit_amount": unit_amount,
+                        "product_data": {
+                            "name": product_name,
+                            **({"description": desc} if desc else {}),
+                        },
+                    },
+                    "quantity": 1,
+                }
+            ],
+            "success_url": success_url,
+            "cancel_url": cancel_url,
+            "metadata": {
+                "auction_item_id": str(item.id),
+                "auction_event_id": str(item.auction_event_id),
+            },
+        }
+        if email_stripped:
+            params["customer_email"] = email_stripped[:254]
+
+        try:
+            session = stripe.checkout.Session.create(**params)
+        except stripe.error.StripeError as e:
+            return Response(
+                {"detail": f"Stripe error: {str(e).strip() or e.__class__.__name__}"},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        if not session.url:
+            return Response(
+                {"detail": "Stripe did not return a checkout URL."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        return Response({"checkout_url": session.url}, status=status.HTTP_200_OK)

@@ -1,6 +1,7 @@
+import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { ActivityIndicator, Card, Text, useTheme } from 'react-native-paper';
+import { ActivityIndicator, Button, Card, Text, useTheme } from 'react-native-paper';
 
 import { useAppDispatch, useAppSelector } from '@/state/hooks';
 import {
@@ -11,6 +12,7 @@ import {
 } from '@/state/slices/auctionItemsSlice';
 
 export default function ItemsScreen() {
+  const router = useRouter();
   const dispatch = useAppDispatch();
   const theme = useTheme();
 
@@ -45,6 +47,20 @@ export default function ItemsScreen() {
               <Text variant="bodyMedium" numberOfLines={2}>
                 {item.description}
               </Text>
+              {item.status === 'published' ? (
+                <Button
+                  mode="contained"
+                  compact
+                  style={styles.buy}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(tabs)/itemCheckout/[itemId]',
+                      params: { itemId: String(item.id) },
+                    })
+                  }>
+                  Buy
+                </Button>
+              ) : null}
             </Card.Content>
           </Card>
         ))
@@ -71,6 +87,10 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 8,
   },
+  buy: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
+  },
   errorText: {
     color: '#c00',
   },
@@ -79,4 +99,3 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 });
-

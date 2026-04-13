@@ -36,7 +36,8 @@ function toNumber(value: unknown): number | null {
   return null;
 }
 
-function normalizeAuctionItem(raw: unknown): AuctionItem | null {
+/** Normalize a Django auction item payload (exported for single-item fetch helpers). */
+export function normalizeAuctionItem(raw: unknown): AuctionItem | null {
   if (!raw || typeof raw !== 'object') return null;
   const item = raw as Record<string, unknown>;
 
@@ -53,32 +54,31 @@ function normalizeAuctionItem(raw: unknown): AuctionItem | null {
   };
 }
 
-export const fetchAuctionItems = createAsyncThunk<
-  AuctionItem[],
-  void,
-  { rejectValue: string }
->('auctionItems/fetchAuctionItems', async (_, { rejectWithValue }) => {
-  try {
-    const res = await fetch(`${API_BASE}/auctionItem/`);
-    if (!res.ok) {
-      const text = await res.text();
-      return rejectWithValue(text || `HTTP ${res.status}`);
+export const fetchAuctionItems = createAsyncThunk<AuctionItem[], void, { rejectValue: string }>(
+  'auctionItems/fetchAuctionItems',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await fetch(`${API_BASE}/auctionItem/`);
+      if (!res.ok) {
+        const text = await res.text();
+        return rejectWithValue(text || `HTTP ${res.status}`);
+      }
+      const data = (await res.json()) as unknown;
+      if (!Array.isArray(data)) {
+        return rejectWithValue('Invalid items response from API.');
+      }
+      const normalized: AuctionItem[] = [];
+      for (const row of data) {
+        const item = normalizeAuctionItem(row);
+        if (item) normalized.push(item);
+      }
+      return normalized;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to fetch items';
+      return rejectWithValue(message);
     }
-    const data = (await res.json()) as unknown;
-    if (!Array.isArray(data)) {
-      return rejectWithValue('Invalid items response from API.');
-    }
-    const normalized: AuctionItem[] = [];
-    for (const row of data) {
-      const item = normalizeAuctionItem(row);
-      if (item) normalized.push(item);
-    }
-    return normalized;
-  } catch (e) {
-    const message = e instanceof Error ? e.message : 'Failed to fetch items';
-    return rejectWithValue(message);
   }
-});
+);
 
 export type CreateAuctionItemPayload = {
   auction_event: number;
@@ -131,35 +131,37 @@ export const generateAuctionItemDescription = createAsyncThunk<
   { description: string },
   { name: string },
   { rejectValue: string; state: RootWithAuth }
->('auctionItems/generateAuctionItemDescription', async ({ name }, { rejectWithValue, getState }) => {
-  try {
-    const token = getState().auth.accessToken;
-    if (!token) {
-      return rejectWithValue('You must be signed in to generate a description.');
+>(
+  'auctionItems/generateAuctionItemDescription',
+  async ({ name }, { rejectWithValue, getState }) => {
+    try {
+      const token = getState().auth.accessToken;
+      if (!token) {
+        return rejectWithValue('You must be signed in to generate a description.');
+      }
+      const res = await fetch(`${API_BASE}/ai/generate-item-description/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders(token),
+        },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        return rejectWithValue(text || `HTTP ${res.status}`);
+      }
+      const data = (await res.json()) as { description?: unknown };
+      if (typeof data.description !== 'string' || !data.description.trim()) {
+        return rejectWithValue('API returned no description.');
+      }
+      return { description: data.description };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to generate description';
+      return rejectWithValue(message);
     }
-    const res = await fetch(`${API_BASE}/ai/generate-item-description/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...authHeaders(token),
-      },
-      body: JSON.stringify({ name }),
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      return rejectWithValue(text || `HTTP ${res.status}`);
-    }
-    const data = (await res.json()) as { description?: unknown };
-    if (typeof data.description !== 'string' || !data.description.trim()) {
-      return rejectWithValue('API returned no description.');
-    }
-    return { description: data.description };
-  } catch (e) {
-    const message =
-      e instanceof Error ? e.message : 'Failed to generate description';
-    return rejectWithValue(message);
   }
-});
+);
 
 const auctionItemsSlice = createSlice({
   name: 'auctionItems',
@@ -225,8 +227,7 @@ const auctionItemsSlice = createSlice({
       })
       .addCase(generateAuctionItemDescription.rejected, (state, action) => {
         state.generateDescriptionLoading = false;
-        state.generateDescriptionError =
-          action.payload ?? 'Failed to generate description';
+        state.generateDescriptionError = action.payload ?? 'Failed to generate description';
       });
   },
 });
@@ -238,13 +239,11 @@ export const {
   clearGenerateDescriptionError,
 } = auctionItemsSlice.actions;
 
-export const selectAuctionItems = (state: {
-  auctionItems: AuctionItemsState;
-}): AuctionItem[] => state.auctionItems.items;
+export const selectAuctionItems = (state: { auctionItems: AuctionItemsState }): AuctionItem[] =>
+  state.auctionItems.items;
 
-export const selectAuctionItemsLoading = (state: {
-  auctionItems: AuctionItemsState;
-}): boolean => state.auctionItems.loading;
+export const selectAuctionItemsLoading = (state: { auctionItems: AuctionItemsState }): boolean =>
+  state.auctionItems.loading;
 
 export const selectAuctionItemsError = (state: {
   auctionItems: AuctionItemsState;
@@ -263,6 +262,11 @@ export const selectAuctionItemsByEventId =
   (eventId: number) =>
   (state: { auctionItems: AuctionItemsState }): AuctionItem[] =>
     state.auctionItems.items.filter((item) => item.auction_event === eventId);
+
+export const selectAuctionItemById =
+  (id: number) =>
+  (state: { auctionItems: AuctionItemsState }): AuctionItem | undefined =>
+    state.auctionItems.items.find((item) => item.id === id);
 
 type RootWithAuthItems = {
   auth: { user: { sub: string } | null };

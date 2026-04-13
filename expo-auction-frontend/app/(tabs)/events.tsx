@@ -1,13 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet, View, FlatList, TouchableOpacity, ListRenderItem } from 'react-native';
-import {
-  Card,
-  Text,
-  Button,
-  ActivityIndicator,
-  useTheme,
-} from 'react-native-paper';
+import { Card, Text, Button, ActivityIndicator, useTheme } from 'react-native-paper';
 
 import type { AuctionEvent } from '@/constants/events';
 import { useAppDispatch, useAppSelector } from '@/state/hooks';
@@ -73,12 +67,9 @@ export default function EventsScreen() {
   const error = useAppSelector(selectEventsError);
   const currentUser = useAppSelector(selectCurrentUser);
 
-  useEffect(
-    () => {
-      void dispatch(fetchEvents());
-    },
-    [dispatch]
-  );
+  useEffect(() => {
+    void dispatch(fetchEvents());
+  }, [dispatch]);
 
   const renderItem: ListRenderItem<AuctionEvent> = ({ item }) => (
     <EventCard
@@ -120,14 +111,15 @@ export default function EventsScreen() {
           }
           ListHeaderComponent={
             <View style={styles.header}>
-              <Text variant="headlineSmall" style={styles.title}>
-                Events
-              </Text>
-              <Button
-                mode="contained"
-                onPress={() => router.push('/(tabs)/addEvent')}
-                compact
-              >
+              <View style={styles.headerTextBlock}>
+                <Text variant="headlineSmall" style={styles.title}>
+                  Events
+                </Text>
+                <Text variant="bodySmall" style={styles.subtitle}>
+                  Open an event to see its auction items and the Stripe Buy demo.
+                </Text>
+              </View>
+              <Button mode="contained" onPress={() => router.push('/(tabs)/addEvent')} compact>
                 Add
               </Button>
             </View>
@@ -149,12 +141,20 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: 16,
+    gap: 12,
+  },
+  headerTextBlock: {
+    flex: 1,
   },
   title: {
-    flex: 1,
+    marginBottom: 4,
+  },
+  subtitle: {
+    color: '#666',
+    lineHeight: 18,
   },
   cardWrapper: {
     marginBottom: 12,
